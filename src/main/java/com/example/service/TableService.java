@@ -37,8 +37,16 @@ public class TableService {
         return tableModelRepository.save(tableModel);
     }
 
-    public void removeTable(TableModel t){
+    public void removeTableModel(TableModel t){
         tableModelRepository.delete(t);
+    }
+
+    public void deleteTableModel(String id) {
+        tableModelRepository.delete(id);
+    }
+
+    public void deleteTableModelFromVariables(String baslik, String ilgili){
+        tableModelRepository.delete(tableModelRepository.findByBaslikAndIlgili(baslik, ilgili));
     }
 
     public  void removeAll(){
