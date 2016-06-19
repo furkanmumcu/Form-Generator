@@ -9,6 +9,7 @@ import com.example.model.TableModel;
 import com.example.service.TableService;
 import com.vaadin.annotations.PreserveOnRefresh;
 import com.vaadin.annotations.Theme;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.event.Action;
 import com.vaadin.event.ItemClickEvent;
@@ -28,13 +29,14 @@ import java.util.Date;
 public class Denek extends UI {
     static int n = 1;
     int id =1;
+    Table table;
     private TableService tableService = Registry.getTableService();
 
     public void init (VaadinRequest request){
 
         //setTheme("mytheme");
         setTheme("valo");
-
+        System.out.println();
         VerticalLayout container = new VerticalLayout(); // layout to make positioning adjustments
         container.setMargin(true);
         VerticalLayout alayout = new VerticalLayout(); // main layout
@@ -83,42 +85,41 @@ public class Denek extends UI {
         // third formed layout contains aciklama
 
         // create table
-        Table table = new Table();
+        table = new Table();
         table.setSelectable(true);
         table.setImmediate(true);
 
+        table.addContainerProperty("objId", String.class, null);
         table.addContainerProperty("Baslik", String.class, null);
         table.addContainerProperty("Ilgili", String.class, null);
         table.addContainerProperty("Gun", Date.class, null);
         table.addContainerProperty("Konu", String.class, null);
         table.addContainerProperty("Aciklama", String.class, null);
         table.setWidth("100%");
-        //table.setEditable(true);
 
-        /*table.addListener(new ItemClickEvent.ItemClickListener() {
-            public void itemClick(ItemClickEvent event) {
-                if (event.getButton() == MouseEvents.ClickEvent.BUTTON_RIGHT) {
-                    for(int i = 0; i<=n; i++ ) {
-                        if (table.isSelected(i))
-                            table.removeItem(i);
-                    }
-                }
-            }
-        }); */
+        table.setVisibleColumns(new Object[]{"Baslik","Ilgili","Gun","Konu","Aciklama"});
+
 
         Action actionDelete = new Action("Delete");
-
+        Action actionDeleteByVariables = new Action("Delete By Variables");
         table.addActionHandler(new Action.Handler() {
             @Override
             public void handleAction(final Action action, final Object sender,
                                      final Object target) {
+
                 if (action == actionDelete) {
-                    //fillTable(table);
-                    table.removeItem(target);
-                    //System.out.println(target);
-                    //int nmr = (int) target;
-                    //tableService.removeTable(tableService.findAllTables().get(nmr-1));
-                    //fillTable(table);
+                    if(table.getValue()!=null){
+                        Item item = table.getItem(table.getValue());
+                        tableService.deleteTableModel(item.getItemProperty("objId").getValue().toString());
+                        fillTable();
+                    }
+                }
+                else if (action == actionDeleteByVariables) {
+                    if(table.getValue()!=null){
+                        Item item = table.getItem(table.getValue());
+                        tableService.deleteTableModelFromVariables(item.getItemProperty("Baslik").getValue()+"",item.getItemProperty("Ilgili").getValue()+"");
+                        fillTable();
+                    }
                 }
             }
 
@@ -126,16 +127,12 @@ public class Denek extends UI {
             public Action[] getActions(final Object target, final Object sender) {
 
                 if (target == null) {
-                    return new Action[] { actionDelete };
+                    return new Action[] { actionDelete, actionDeleteByVariables };
                 }
-                return new Action[] { actionDelete };
+                return new Action[] { actionDelete , actionDeleteByVariables};
             }
         });
         // create table
-
-
-
-
 
 
         // horizontal layout which contains kaydet and temizle buttons
@@ -146,21 +143,7 @@ public class Denek extends UI {
         h2.setWidth("100%");
         Button button = new Button("clear");
         button.addClickListener(new Button.ClickListener() {
-            //@Override
             public void buttonClick(Button.ClickEvent event) {
-                //tableService.removeTable(tableService.findAllTables().get(1));
-/*                for(int i = 0; i<=n; i++ ) {
-
-                    if (table.isSelected(i)) {
-                        System.out.println(table.getValue());
-                        //nt nmr = (Integer) table.getValue();
-                        //tableService.removeTable(tableService.findAllTables().get(nmr-2));
-                        table.removeItem(i);
-
-                    }
-                }*/
-                //fillTable(table);
-
                 text.setValue("");
                 aciklama.setValue("");
                 textkonu.setValue("");
@@ -171,7 +154,7 @@ public class Denek extends UI {
 
         h2.addComponent(button);
 
-        fillTable(table);
+        fillTable();
 
         Button button2 = new Button("kaydet");
         h2.addComponent(button2);
@@ -184,17 +167,22 @@ public class Denek extends UI {
                     // don't add
                 }
                 else {
+                    TableModel tableModel = Registry.getTableService().saveTable(text.getValue(), String.valueOf(combobox.getValue()), date.getValue(), textkonu.getValue(), aciklama.getValue());
 
-                    table.addItem(new Object[]{text.getValue(), combobox.getValue(), date.getValue(), textkonu.getValue(), aciklama.getValue()}, n+id);
-                    Registry.getTableService().saveTable(text.getValue(), String.valueOf(combobox.getValue()), date.getValue(), textkonu.getValue(), aciklama.getValue());
+                    Object id = table.addItem();
+                    //table.getItem(id).getItemProperty("Baslik").setValue(text.getValue()); does same thing with below code
+                    table.getContainerProperty(id,"Baslik").setValue(text.getValue());
+                    table.getContainerProperty(id,"Ilgili").setValue(combobox.getValue());
+                    table.getContainerProperty(id,"Gun").setValue(date.getValue());
+                    table.getContainerProperty(id,"Konu").setValue(textkonu.getValue());
+                    table.getContainerProperty(id,"Aciklama").setValue(aciklama.getValue());
+                    table.getContainerProperty(id,"objId").setValue(tableModel.getId());
                     try {
-                        fillTable(table);
+                        fillTable();
                     }
                     catch (Exception exception){
                         System.out.println(exception.toString());
                     }
-
-
                 }
 
                 n++;
@@ -225,16 +213,19 @@ public class Denek extends UI {
         container.setComponentAlignment(pane, Alignment.TOP_CENTER);
 
         pane.setContent(alayout);
-
-        //Registry.getTableService().findAllTables().toString();
-
     }
 
-    private void fillTable(Table table){
+    private void fillTable(){
         table.removeAllItems();
         for(TableModel tableModel : tableService.findAllTables()) {
-            table.addItem(new Object[]{tableModel.getBaslik(),tableModel.getIlgili(),tableModel.getGun(),tableModel.getKonu(),tableModel.getAciklama()},id);
-            id++;
+            Object id = table.addItem();
+            table.getContainerProperty(id,"Baslik").setValue(tableModel.getBaslik());
+            table.getContainerProperty(id,"Ilgili").setValue(tableModel.getIlgili());
+            table.getContainerProperty(id,"Gun").setValue(tableModel.getGun());
+            table.getContainerProperty(id,"Konu").setValue(tableModel.getKonu());
+            table.getContainerProperty(id,"Aciklama").setValue(tableModel.getAciklama());
+            table.getContainerProperty(id,"objId").setValue(tableModel.getId());
+
         }
     }
 }
